@@ -1,3 +1,10 @@
+'''
+Code that performs basic acceleration and steering tests on  RC car
+using RPi 4 and Adafruit DAC
+
+Daniel Li, Daniel Choi, Desmond Roberts, Akshay Shyam, Samatar Dalmar
+11/28/2023
+'''
 # SPDX-FileCopyrightText: 2021 ladyada for Adafruit Industries
 # SPDX-License-Identifier: MIT
 
@@ -5,35 +12,33 @@ import board
 import adafruit_mcp4728
 import time
 
-MCP4728_DEFAULT_ADDRESS = 0x60
-
-'''
-DO NOT USE THESE VALUES AS WE HAVEN'T DETERMINED
-THE RIGHT VOLTAGE VALUES
-'''
-
+# values for controlling the steering potentiometer
+# steer values for now are set to the "extremes", i.e.
+# 0 is the leftmost the car can turn, 65535 is the rightmost etc
 STEER_RIGHT = 65535
 STEER_LEFT = 0
-STEER_RESET = 2.1 / 3.3 * STEER_RIGHT
+STEER_RESET = 32500
 
-
-
-# placeholder value for the max acceleration voltage
-FORWARD = 65535
+# experimentally determined value for a controlled acceleration
+FORWARD = 35000
 # 2.1V = neutral
-STOP = 2.1 / 3.3 * FORWARD
+# midpt of 65535 is 32767
+STOP = 32767
+
+# might not need this
 REVERSE = 0
 
 i2c = board.I2C()  # uses board.SCL and board.SDA
 # i2c = board.STEMMA_I2C()  # For using the built-in STEMMA QT connector on a microcontroller
 #  use for MCP4728 variant
-mcp4728 = adafruit_mcp4728.MCP4728(i2c, adafruit_mcp4728.MCP4728_DEFAULT_ADDRESS)
-#  use for MCP4728A4 variant
-#  mcp4728 = adafruit_mcp4728.MCP4728(i2c, adafruit_mcp4728.MCP4728A4_DEFAULT_ADDRESS)
+#  Note: we overrode the address because apparently the board was connected to 0x64
+mcp4728 = adafruit_mcp4728.MCP4728(i2c, 0x64)
 
-throttle = mcp4728.channel_a 
-steering = mcp4728.channel_b
+# initializing the channels for steering and throttle
+throttle = mcp4728.channel_b 
+steering = mcp4728.channel_a
 
+# test function for steering the car left and right and back to neutral
 def test_steer():
     # reset steer to neutral
     steering.value = STEER_RESET
@@ -42,20 +47,34 @@ def test_steer():
     # steer left
     steering.value = STEER_LEFT
     time.sleep(1)
+    print("left steer done")
+   
+    steering.value = STEER_RESET
+    time.sleep(1)
+    print("reset")
 
     # steer right
     steering.value = STEER_RIGHT
+    print("right steer done")
+    time.sleep(1)
+    steering.value = STEER_RESET
 
+# test function to accelerate for 3 seconds and then stop
 def test_throttle():
     # stop the wheels if they are moving
     throttle.value = STOP
     time.sleep(1)
-
+    
+    print("starting")
     # go forward
-    throtte.value = FORWARD
-    time.sleep(1)
+    throttle.value = FORWARD
+    time.sleep(3)
+    print("stopping")
+    # stopping at end
+    throttle.value = STOP
 
+# running the tests
 if __name__ == "__main__":
     test_steer()
-    time.sleep(3)
-    test_throttle
+    time.sleep(1)
+    test_throttle()
