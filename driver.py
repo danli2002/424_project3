@@ -77,7 +77,7 @@ def detect_edges(frame):
     mask = cv2.inRange(frame, lower_blue, upper_blue) # mask the frame to get only blue colors
 
     # detect edges
-    edges = cv2.Canny(mask, 50, 100)
+    edges = cv2.Canny(mask, 33, 100)
     # cv2.imshow("edges", edges)
     save_image(edges, "edges.jpg")
     return edges
