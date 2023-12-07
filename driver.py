@@ -56,7 +56,7 @@ def convert_to_HSV(frame):
     
     # convert to HSV
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    cv2.imshow("HSV",hsv)
+    # cv2.imshow("HSV",hsv)
     save_image(hsv, "hsv.jpg")
     return hsv
 
@@ -289,6 +289,7 @@ def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_wid
     cv2.line(heading_image, (x1, y1), (x2, y2), line_color, line_width)
 
     heading_image = cv2.addWeighted(frame, 0.8, heading_image, 1, 1)
+    cv2.imshow("heading line", heading_image)
     save_image(heading_image, "heading_line.jpg")
     return heading_image
 
