@@ -72,10 +72,11 @@ def detect_edges(frame):
     """
 
     # define the blue limits for lane detection
-    lower_blue = np.array([90, 120, 0], dtype="uint8") # lower limit of the blue color
+    lower_blue = np.array([90, 90, 0], dtype="uint8") # lower limit of the blue color
     upper_blue = np.array([150, 255, 255], dtype="uint8") # upper limit of the blue color
     mask = cv2.inRange(frame, lower_blue, upper_blue) # mask the frame to get only blue colors
-    save_image(mask, "mask.jpg")
+    # save_image(mask, "mask.jpg")
+    # cv2.imshow("mask", mask)
     # detect edges
     edges = cv2.Canny(mask, 50, 100)
     # cv2.imshow("edges", edges)
@@ -128,6 +129,7 @@ def detect_line_segments(cropped_edges):
     line_segments = cv2.HoughLinesP(cropped_edges, rho, theta, min_threshold, 
                                     np.array([]), minLineLength=5, maxLineGap=0)
     # save_image(line_segments, "line_segments.jpg")
+    # cv2.imshow("segments", line_segments)
     return line_segments
 
 def average_slope_intercept(frame, line_segments):
@@ -224,7 +226,7 @@ def display_lines(frame, lines, line_color=(0,255,0), line_width=6):
             for x1, y1, x2, y2 in line:
                 cv2.line(line_image, (x1,y1), (x2,y2), line_color, line_width)
     line_image = cv2.addWeighted(frame, 0.8, line_image, 1, 1)
-    save_image(line_image, "line_image.jpg")
+    # save_image(line_image, "line_image.jpg")
     cv2.imshow("lane lines", line_image)
 
 def get_steering_angle(frame, lane_lines):
@@ -289,7 +291,7 @@ def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_wid
     cv2.line(heading_image, (x1, y1), (x2, y2), line_color, line_width)
 
     heading_image = cv2.addWeighted(frame, 0.8, heading_image, 1, 1)
-    cv2.imshow("heading line", heading_image)
+    # cv2.imshow("heading line", heading_image)
     save_image(heading_image, "heading_line.jpg")
     return heading_image
 
@@ -332,17 +334,18 @@ def run():
         lane_lines = average_slope_intercept(frame, line_segments)
         steering_angle = get_steering_angle(frame, lane_lines)
         heading_image = display_heading_line(frame, steering_angle)
-        # display_lines(frame, lane_lines)
+        display_lines(frame, lane_lines)
         # cv2.imshow("heading line", heading_image)
 
         now = time.time()
         dt = now - lastTime
         
         deviation = steering_angle - 90
+        print(f'Steering Angle: {steering_angle} | Deviation: {deviation}')
         error = abs(deviation)
 
         if deviation < 5 and deviation > -5:
-            deviation = 0
+            # deviation = 0
             error = 0
             motor_control.steer_neutral()
         

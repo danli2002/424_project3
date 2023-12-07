@@ -5,8 +5,8 @@ import time
 # values for controlling the steering potentiometer
 # steer values for now are set to the "extremes", i.e.
 # 0 is the leftmost the car can turn, 65535 is the rightmost etc
-STEER_RIGHT = 65535
-STEER_LEFT = 0
+MAX_STEER_RIGHT = 65535
+MAX_STEER_LEFT = 0
 STEER_RESET = 32500
 
 # experimentally determined value for a controlled acceleration
@@ -30,11 +30,11 @@ class MotorControl:
         self.throttle = self.mcp4728.channel_b 
         self.steering = self.mcp4728.channel_a
     
-    def steer_right(self):
-        self.steering.value = STEER_RIGHT
+    def MAX_steer_right(self, angle):
+        self.steering.value = MAX_STEER_RIGHT
 
     def steer_left(self):
-        self.steering.value = STEER_LEFT
+        self.steering.value = MAX_STEER_LEFT
 
     def steer_neutral(self):
         self.steering.value = STEER_RESET
