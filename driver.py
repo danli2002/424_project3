@@ -290,6 +290,17 @@ def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_wid
     save_image(heading_image, "heading_line.jpg")
     return heading_image
 
+def test_image_checkpoints():
+    video = setup_video()
+    ret, frame = video.read()
+    hsv = convert_to_HSV(frame)
+    edges = detect_edges(hsv)
+    roi = region_of_interest(edges)
+    line_segments = detect_line_segments(roi)
+    lane_lines = average_slope_intercept(frame, line_segments)
+    steering_angle = get_steering_angle(frame, lane_lines)
+    heading_image = display_heading_line(frame, steering_angle)
+
 def run():
     """
     Runs the lane-keeping RC car.
@@ -319,7 +330,7 @@ def run():
         steering_angle = get_steering_angle(frame, lane_lines)
         heading_image = display_heading_line(frame, steering_angle)
         # display_lines(frame, lane_lines)
-        cv2.imshow("heading line", heading_image)
+        # cv2.imshow("heading line", heading_image)
 
         now = time.time()
         dt = now - lastTime
@@ -356,3 +367,6 @@ def run():
     cv2.destroyAllWindows()
     motor_control.steer_neutral()
     motor_control.stop()
+
+if __name__ == "__main__":
+    test_image_checkpoints()
