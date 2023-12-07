@@ -350,10 +350,10 @@ def run():
             motor_control.steer_neutral()
         
         elif deviation > 5:
-            motor_control.steer_right()
+            motor_control.steer_right(deviation / 45)
 
         elif deviation < -5:
-            motor_control.steer_left()
+            motor_control.steer_left(deviation / -45)
         
         derivative = kd * (error - lastError) / dt 
         proportional = kp * error

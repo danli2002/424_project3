@@ -30,12 +30,12 @@ class MotorControl:
         self.throttle = self.mcp4728.channel_b 
         self.steering = self.mcp4728.channel_a
     
-    def MAX_steer_right(self, angle):
-        self.steering.value = MAX_STEER_RIGHT
+    def steer_right(self, value = 1.0):
+        self.steering.value = int(STEER_RESET * value) + STEER_RESET
 
-    def steer_left(self):
-        self.steering.value = MAX_STEER_LEFT
-
+    def steer_left(self, value = 1.0):
+        self.steering.value = STEER_RESET - int(STEER_RESET * value)
+        
     def steer_neutral(self):
         self.steering.value = STEER_RESET
     
