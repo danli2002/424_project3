@@ -371,4 +371,5 @@ def run():
     motor_control.stop()
 
 if __name__ == "__main__":
-    test_image_checkpoints()
+    # test_image_checkpoints()
+    run()
