@@ -127,7 +127,7 @@ def detect_line_segments(cropped_edges):
     min_threshold = 10
     line_segments = cv2.HoughLinesP(cropped_edges, rho, theta, min_threshold, 
                                     np.array([]), minLineLength=5, maxLineGap=0)
-    save_image(line_segments, "line_segments.jpg")
+    # save_image(line_segments, "line_segments.jpg")
     return line_segments
 
 def average_slope_intercept(frame, line_segments):
