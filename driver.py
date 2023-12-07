@@ -71,7 +71,7 @@ def detect_edges(frame):
     """
 
     # define the blue limits for lane detection
-    lower_blue = np.array([90, 120, 0], dtyle="uint8") # lower limit of the blue color
+    lower_blue = np.array([90, 120, 0], dtype="uint8") # lower limit of the blue color
     upper_blue = np.array([150, 255, 255], dtype="uint8") # upper limit of the blue color
     mask = cv2.inRange(frame, lower_blue, upper_blue) # mask the frame to get only blue colors
 
