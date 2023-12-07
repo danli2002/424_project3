@@ -30,8 +30,18 @@ def setup_video():
     video = cv2.VideoCapture(0)
     video.set(cv2.CAP_PROP_FRAME_WIDTH, 320)  # set the width to 320 p
     video.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)  # set the height to 240 p
-
     return video
+
+def save_image(image, filename):
+    """
+    Saves an image to the images folder.
+
+    Parameters:
+        image (numpy.ndarray): The image to save.
+        filename (str): The name of the file to save the image to.
+    """
+
+    cv2.imwrite("images/" + filename, image)
 
 def convert_to_HSV(frame):
     """
@@ -67,7 +77,8 @@ def detect_edges(frame):
 
     # detect edges
     edges = cv2.Canny(mask, 50, 100)
-    cv2.imshow("edges",edges)
+    # cv2.imshow("edges", edges)
+    save_image(edges, "edges.jpg")
     return edges
 
 def region_of_interest(edges):
@@ -95,7 +106,8 @@ def region_of_interest(edges):
 
     cv2.fillPoly(mask, polygon, 255) # fill the polygon with blue
     cropped_edges = cv2.bitwise_and(edges, mask) # mask the edges to get only the region of interest
-    cv2.imshow("roi",cropped_edges)
+    save_image(cropped_edges, "roi.jpg")
+    # cv2.imshow("roi",cropped_edges)
     return cropped_edges
 
 def detect_line_segments(cropped_edges):
@@ -210,6 +222,7 @@ def display_lines(frame, lines, line_color=(0,255,0), line_width=6):
             for x1, y1, x2, y2 in line:
                 cv2.line(line_image, (x1,y1), (x2,y2), line_color, line_width)
     line_image = cv2.addWeighted(frame, 0.8, line_image, 1, 1)
+    save_image(line_image, "line_image.jpg")
     cv2.imshow("lane lines", line_image)
 
 def get_steering_angle(frame, lane_lines):
@@ -274,7 +287,7 @@ def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_wid
     cv2.line(heading_image, (x1, y1), (x2, y2), line_color, line_width)
 
     heading_image = cv2.addWeighted(frame, 0.8, heading_image, 1, 1)
-
+    save_image(heading_image, "heading_line.jpg")
     return heading_image
 
 def run():
