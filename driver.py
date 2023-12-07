@@ -142,7 +142,7 @@ def average_slope_intercept(frame, line_segments):
 
     lane_lines = []
 
-    if not line_segments:
+    if line_segments is None:
         print("no line segments detected")
         return lane_lines
 
