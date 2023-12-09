@@ -1,0 +1,15 @@
+/dts-v1/;
+/plugin/;
+
+/ {
+    fragment@0 {
+        target-path = "/";
+        __overlay__ {
+            proj3_device {
+                compatible = "proj3";
+                proj3encoder-gpios = <&gpio 4 0 >;
+            };
+        };
+    };
+
+};

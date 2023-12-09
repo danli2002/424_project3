@@ -38,11 +38,17 @@ class MotorControl:
     
     def steer_right(self, value = 1.0):
         print(f'Value: {int(STEER_RESET * value) + STEER_RESET}')
-        self.steering.value = min(int(STEER_RESET * value) + STEER_RESET, 65535)
+        # self.steering.value = min(int(STEER_RESET * value) + STEER_RESET, 65535)
+        self.steering.value = 40000
+        # self.steering.value = 49500
+        # self.steering.value = 38000
+
 
     def steer_left(self, value = 1.0):
-        print(f'Value: {STEER_RESET - int(STEER_RESET * value)}')
-        self.steering.value = max(0,STEER_RESET - int(STEER_RESET * value))
+        # print(f'Value: {STEER_RESET - int(STEER_RESET * value)}')
+        # self.steering.value = max(0,STEER_RESET - int(STEER_RESET * value))
+        self.steering.value = 25000
+        # self.steering.value = 15500
 
     def steer_neutral(self):
         self.steering.value = STEER_RESET
@@ -53,3 +59,16 @@ class MotorControl:
     
     def stop(self):
         self.throttle.value = STOP
+
+    def get_steer_value(self):
+        return self.steering.value
+
+    def get_speed_value(self):
+        return self.throttle.value
+
+    def decrement_speed_value(self, val):
+        self.throttle.value -= int(val)
+
+    def increment_speed_value(self, val):
+        self.throttle.value += int(val)
+

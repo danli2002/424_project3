@@ -22,6 +22,7 @@ STEERING_CONSTANT = 60
 DEAD_ZONE = 10
 
 
+
 def setup_video():
     """
     Sets up the video capture device and configures the frame size.
@@ -33,8 +34,8 @@ def setup_video():
 
     video = cv2.VideoCapture(0)
     video.set(cv2.CAP_PROP_BUFFERSIZE, 2)
-    video.set(cv2.CAP_PROP_FRAME_WIDTH, 240)  # set the width to 320 p
-    video.set(cv2.CAP_PROP_FRAME_HEIGHT, 180)  # set the height to 240 p
+    video.set(cv2.CAP_PROP_FRAME_WIDTH, 320)  # set the width to 320 p
+    video.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)  # set the height to 240 p
     return video
 
 def save_image(image, filename):
@@ -61,7 +62,7 @@ def convert_to_HSV(frame):
     
     # convert to HSV
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    cv2.imshow("HSV",hsv)
+    # cv2.imshow("HSV",hsv)
     save_image(hsv, "hsv.jpg")
     return hsv
 
@@ -77,13 +78,13 @@ def detect_edges(frame):
     """
 
     # define the blue limits for lane detection
-    lower_blue = np.array([90, 90, 0], dtype="uint8") # lower limit of the blue color
+    lower_blue = np.array([90, 120, 0], dtype="uint8") # lower limit of the blue color
     upper_blue = np.array([150, 255, 255], dtype="uint8") # upper limit of the blue color
     mask = cv2.inRange(frame, lower_blue, upper_blue) # mask the frame to get only blue colors
     # save_image(mask, "mask.jpg")
     # cv2.imshow("mask", mask)
     # detect edges
-    ed424_project3ges = cv2.Canny(mask, 50, 100)
+    edges = cv2.Canny(mask, 50, 100)
     # cv2.imshow("edges", edges)
     save_image(edges, "edges.jpg")
     return edges
@@ -152,7 +153,7 @@ def average_slope_intercept(frame, line_segments):
     lane_lines = []
 
     if line_segments is None:
-        print("no line segments detected")
+        # print("no line segments detected")
         return lane_lines
 
     height, width, _ = frame.shape
@@ -167,7 +168,7 @@ def average_slope_intercept(frame, line_segments):
         for x1, y1, x2, y2 in line_segment:
             if x1 == x2:
                 
-                x2 -= 1e-3
+                continue
                 # print("skipping vertical line segment (slope = infinity)")
                 # continue
 
@@ -216,6 +217,28 @@ def make_points(frame, line):
 
     return [[x1, y1, x2, y2]]
 
+def detect_stopsign(image):
+    hsv = convert_to_HSV(image)
+    
+    #red color has two ranges in hsv
+    lower_red1 = np.array([0, 70, 20])
+    upper_red1 = np.array([20, 255, 255])
+    
+    lower_red2 = np.array([130, 70,20])
+    upper_red2 = np.array([189,255,255])
+    
+    red_lower = cv2.inRange(hsv, lower_red1, upper_red1)
+    red_upper = cv2.inRange(hsv, lower_red2, upper_red2)
+    red_mask = red_lower + red_upper
+    red = cv2.bitwise_and(image, image, mask = red_mask)
+    total_pixels = red.size
+    #if there is a significant amount of red, recognize it as a stopsign/light
+    red_pixels = np.count_nonzero(red)
+    percent = (red_pixels / total_pixels) * 100
+    if percent > 30:
+        return True
+    return False
+
 def display_lines(frame, lines, line_color=(0,255,0), line_width=6):
     """
     Display lines on an image.
@@ -234,7 +257,7 @@ def display_lines(frame, lines, line_color=(0,255,0), line_width=6):
                 cv2.line(line_image, (x1,y1), (x2,y2), line_color, line_width)
     line_image = cv2.addWeighted(frame, 0.8, line_image, 1, 1)
     # save_image(line_image, "line_image.jpg")
-    cv2.imshow("lane lines", line_image)
+    # cv2.imshow("lane lines", line_image)
 
 def get_steering_angle(frame, lane_lines, default_angle = 0):
     """
@@ -303,12 +326,22 @@ def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_wid
     x2 = int(x1 - height / 2 / math.tan(steering_angle_radian))
     y2 = int(height / 2)
 
+    # print("x2", x2)
     cv2.line(heading_image, (x1, y1), (x2, y2), line_color, line_width)
 
     heading_image = cv2.addWeighted(frame, 0.8, heading_image, 1, 1)
-    cv2.imshow("heading line", heading_image)
+    # cv2.imshow("heading line", heading_image)
     save_image(heading_image, "heading_line.jpg")
     return heading_image
+
+def write_list_to_file(numbers, name):
+    # Convert the list of numbers to a string with commas
+    numbers_string = ','.join(map(str, numbers))
+
+    # Write the string to a file
+    with open(f'{name}.txt', 'w') as file:
+        file.write(numbers_string)
+    
 
 def test_image_checkpoints():
     video = setup_video()
@@ -329,7 +362,7 @@ def run():
     queue = []
     motor_control = MotorControl()
     video = setup_video()
-
+    start = time.time()
     steering_angle = 0
     last_steering_angle = 0
     deviation = 0
@@ -337,23 +370,42 @@ def run():
     speed = 8
     lastTime = 0
     lastError = 0
+    stopSignCounter = 1
+    isStop = False
+    passedFirstStop = False
+    lastStopTime = 0
+    error_vals = []
+    p_vals = []
+    d_vals = []
+    speed_vals = []
+    steer_vals = []
 
-    kp = 0.4
-    kd = kp * 0.65
+    kp = 0.8 / 24 
+    kd = kp * 0.06
 
     time.sleep(1)
 
-    while True:
+    while True and time.time() - start < 60:
         ret, frame = video.read()
         if not ret:
             video = setup_video()
             continue
+        frame = cv2.resize(frame, (160,120))
 
         hsv = convert_to_HSV(frame)
         edges = detect_edges(hsv)
         roi = region_of_interest(edges)
         line_segments = detect_line_segments(roi)
         lane_lines = average_slope_intercept(frame, line_segments)
+        diff = 5
+        with open("/sys/module/gpiod_driver/parameters/elapsed_ns", "r") as elapsed_file:
+            time_diff = int(elapsed_file.read()) / 100000
+        print(f'time_diff: {time_diff}')
+
+        # if time_diff >= 28:
+        #     motor_control.increment_speed_value(1000)
+        # elif time_diff < 30 and time_diff > 5:
+        #     motor_control.decrement_speed_value(1000)
 
         # Whenever we cannot determine a steering angle we default to the last steering angle
         steering_angle = get_steering_angle(frame, lane_lines, last_steering_angle)
@@ -361,46 +413,87 @@ def run():
 
         heading_image = display_heading_line(frame, steering_angle)
         display_lines(frame, lane_lines)
-        cv2.imshow("heading line", heading_image)
+        # cv2.imshow("heading line", heading_image)
+  
+        stopInterval = time.time() - lastStopTime
+        if(stopInterval > 8 and detect_stopsign(frame)):
+            lastStopTime = time.time()
+            motor_control.stop()
+            time.sleep(3)
+            if(passedFirstStop):
+                return
+            else:
+                motor_control.go_forward()
+                passedFirstStop = True
+
+        # if ((runCounter + 1) % stopSignCounter) == 0:
+        #     if not passedFirstStop:
+        #         isStop = detect_stopsign(frame)
+
+        #         if isStop:
+        #             print("Stopping")
+        #             motor_control.stop()
+        #             time.sleep(3)
+        #             passedFirstStop = True
+
+        #             secondStopWait = runCounter + 200
+
+        #             stopSignCounter = 3
+
+        #             motor_control.go_forward()
+            
+        #     elif passedFirstStop and runCounter > secondStopWait:
+        #         isSecondStop = detect_stopsign(frame)
+        #         if isSecondStop:
+        #             print("Stopping second time")
+        #             motor_control.stop()
+        #             time.sleep(3)
+        #             break
 
         now = time.time()
         dt = now - lastTime
-        print(f'Delta time: {dt}')
+        # print(f'Delta time: {dt}')
         deviation = steering_angle - 90
 
-        # Calculate the discrete integral
-        if len(queue) >= 20:
-            queue.pop()
-        queue.insert(0, deviation)
-        deviation_int = np.mean(queue) # rolling average
+        # # Calculate the discrete integral
+        # if len(queue) >= 20:
+        #     queue.pop()
+        # queue.insert(0, deviation)
+        # deviation_int = np.mean(queue) # rolling average
 
-        deviation_dt = (deviation - last_deviation) / dt
+        # deviation_dt = (deviation - last_deviation) / dt
 
 
         
-        print(f'Steering Angle: {steering_angle} | Deviation: {deviation_int} | Steering Angle {steering_angle}')
-        error = abs(deviation)
+        # print(f'Steering Angle: {steering_angle} | Deviation: {deviation} | Steering Angle {steering_angle}')
+        error = max(24 - time_diff, 0.01)
 
-        if deviation_int < DEAD_ZONE and deviation_int > -DEAD_ZONE:
+        if deviation < DEAD_ZONE and deviation > -DEAD_ZONE:
             deviation = 0
-            error = 0
             motor_control.steer_neutral()
         
-        elif deviation_int > 5:
-            motor_control.steer_right(0.8)
+        elif deviation > 5:
+            motor_control.steer_right(0.3)
 
-        elif deviation_int < -5:
-            motor_control.steer_left(0.8)
+        elif deviation < -5:
+            motor_control.steer_left(0.3)
         
         last_deviation = deviation
 
         derivative = kd * (error - lastError) / dt 
         proportional = kp * error
-        
-        motor_control.go_forward(0.08)
+        pid = derivative + proportional
+        print("pid", pid)
+        motor_control.go_forward(pid)
 
         lastError = error
         lastTime = time.time()
+
+        error_vals.append(error)
+        p_vals.append(proportional)
+        d_vals.append(derivative)
+        speed_vals.append(motor_control.get_speed_value())
+        steer_vals.append(motor_control.get_steer_value())
         
         key = cv2.waitKey(1)
         if key == 27:
@@ -408,14 +501,18 @@ def run():
             motor_control.steer_neutral()
             breaks
     
-        
-
+    
+    write_list_to_file(error_vals, "error")
+    write_list_to_file(p_vals, "p")
+    write_list_to_file(d_vals, "d")
+    write_list_to_file(speed_vals, "speed")
+    write_list_to_file(steer_vals, "steer")
     video.release()
     cv2.destroyAllWindows()
     motor_control.steer_neutral()
     motor_control.stop()
 
+
 if __name__ == "__main__":
     # test_image_checkpoints()
     run()
-[34, 34, 23, 23, 23]
