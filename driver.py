@@ -8,6 +8,9 @@ the voltage of the throttle and steering channels.
 
 Authors: Daniel Li, Daniel Choi, Desmond Roberts, Akshay Shyam, Samatar Dalmar
 
+Code inspired from raja961 Instructables guide on a similar project:
+https://www.instructables.com/Autonomous-Lane-Keeping-Car-Using-Raspberry-Pi-and/
+
 December 6, 2023
 """
 from collections import deque
