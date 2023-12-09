@@ -10,12 +10,16 @@ Authors: Daniel Li, Daniel Choi, Desmond Roberts, Akshay Shyam, Samatar Dalmar
 
 December 6, 2023
 """
+from collections import deque
 from motor_control import MotorControl
 import cv2
 import numpy as np
 import math
 import sys
 import time
+
+STEERING_CONSTANT = 60
+DEAD_ZONE = 10
 
 
 def setup_video():
@@ -28,8 +32,9 @@ def setup_video():
     """
 
     video = cv2.VideoCapture(0)
-    video.set(cv2.CAP_PROP_FRAME_WIDTH, 320)  # set the width to 320 p
-    video.set(cv2.CAP_PROP_FRAME_HEIGHT, 240)  # set the height to 240 p
+    video.set(cv2.CAP_PROP_BUFFERSIZE, 2)
+    video.set(cv2.CAP_PROP_FRAME_WIDTH, 240)  # set the width to 320 p
+    video.set(cv2.CAP_PROP_FRAME_HEIGHT, 180)  # set the height to 240 p
     return video
 
 def save_image(image, filename):
@@ -56,7 +61,7 @@ def convert_to_HSV(frame):
     
     # convert to HSV
     hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    # cv2.imshow("HSV",hsv)
+    cv2.imshow("HSV",hsv)
     save_image(hsv, "hsv.jpg")
     return hsv
 
@@ -78,7 +83,7 @@ def detect_edges(frame):
     # save_image(mask, "mask.jpg")
     # cv2.imshow("mask", mask)
     # detect edges
-    edges = cv2.Canny(mask, 50, 100)
+    ed424_project3ges = cv2.Canny(mask, 50, 100)
     # cv2.imshow("edges", edges)
     save_image(edges, "edges.jpg")
     return edges
@@ -108,7 +113,7 @@ def region_of_interest(edges):
 
     cv2.fillPoly(mask, polygon, 255) # fill the polygon with blue
     cropped_edges = cv2.bitwise_and(edges, mask) # mask the edges to get only the region of interest
-    save_image(cropped_edges, "roi.jpg")
+    # save_image(cropped_edges, "roi.jpg")
     # cv2.imshow("roi",cropped_edges)
     return cropped_edges
 
@@ -127,7 +132,7 @@ def detect_line_segments(cropped_edges):
     theta = np.pi / 180
     min_threshold = 10
     line_segments = cv2.HoughLinesP(cropped_edges, rho, theta, min_threshold, 
-                                    np.array([]), minLineLength=5, maxLineGap=0)
+                                    np.array([]), minLineLength=5, maxLineGap=150)
     # save_image(line_segments, "line_segments.jpg")
     # cv2.imshow("segments", line_segments)
     return line_segments
@@ -161,8 +166,10 @@ def average_slope_intercept(frame, line_segments):
     for line_segment in line_segments:
         for x1, y1, x2, y2 in line_segment:
             if x1 == x2:
-                print("skipping vertical line segment (slope = infinity)")
-                continue
+                
+                x2 -= 1e-3
+                # print("skipping vertical line segment (slope = infinity)")
+                # continue
 
             fit = np.polyfit((x1, x2), (y1, y2), 1)
             slope = (y2 - y1) / (x2 - x1)
@@ -229,13 +236,14 @@ def display_lines(frame, lines, line_color=(0,255,0), line_width=6):
     # save_image(line_image, "line_image.jpg")
     cv2.imshow("lane lines", line_image)
 
-def get_steering_angle(frame, lane_lines):
+def get_steering_angle(frame, lane_lines, default_angle = 0):
     """
     Calculates the steering angle based on the detected lane lines.
 
     Args:
         frame (numpy.ndarray): The input frame/image.
         lane_lines (list): A list of lane lines detected in the frame.
+        (optional) last_steering_angle: if no line is found just default to this value
 
     Returns:
         int: The steering angle needed by the vehicle's front wheel.
@@ -256,9 +264,14 @@ def get_steering_angle(frame, lane_lines):
         y_offset = int(height / 2)
     
     elif len(lane_lines) == 0:
+
+        #SAMATAR
+        # When no line is detected we want to continue at the same deviation, not reset to 0!
+        return default_angle * 0.8
+        """
         x_offset = 0
         y_offset = int(height / 2)
-    
+        """
     angle_to_mid_radian = math.atan(x_offset / y_offset) # angle (in radian) to center vertical line
     angle_to_mid_deg = int(angle_to_mid_radian * 180.0 / math.pi) # angle (in degrees) to center vertical line
     steering_angle = angle_to_mid_deg + 90 # this is the steering angle needed by picar front wheel
@@ -285,13 +298,15 @@ def display_heading_line(frame, steering_angle, line_color=(0, 0, 255), line_wid
     steering_angle_radian = steering_angle / 180.0 * math.pi
     x1 = int(width / 2)
     y1 = height
+    if math.tan(steering_angle_radian) == 0:
+        return frame
     x2 = int(x1 - height / 2 / math.tan(steering_angle_radian))
     y2 = int(height / 2)
 
     cv2.line(heading_image, (x1, y1), (x2, y2), line_color, line_width)
 
     heading_image = cv2.addWeighted(frame, 0.8, heading_image, 1, 1)
-    # cv2.imshow("heading line", heading_image)
+    cv2.imshow("heading line", heading_image)
     save_image(heading_image, "heading_line.jpg")
     return heading_image
 
@@ -304,23 +319,30 @@ def test_image_checkpoints():
     line_segments = detect_line_segments(roi)
     lane_lines = average_slope_intercept(frame, line_segments)
     steering_angle = get_steering_angle(frame, lane_lines)
+
     heading_image = display_heading_line(frame, steering_angle)
 
 def run():
     """
     Runs the lane-keeping RC car.
     """
-
+    queue = []
     motor_control = MotorControl()
     video = setup_video()
 
+    steering_angle = 0
+    last_steering_angle = 0
+    deviation = 0
+    last_deviation = 0
     speed = 8
     lastTime = 0
     lastError = 0
 
     kp = 0.4
     kd = kp * 0.65
-    
+
+    time.sleep(1)
+
     while True:
         ret, frame = video.read()
         if not ret:
@@ -332,40 +354,59 @@ def run():
         roi = region_of_interest(edges)
         line_segments = detect_line_segments(roi)
         lane_lines = average_slope_intercept(frame, line_segments)
-        steering_angle = get_steering_angle(frame, lane_lines)
+
+        # Whenever we cannot determine a steering angle we default to the last steering angle
+        steering_angle = get_steering_angle(frame, lane_lines, last_steering_angle)
+        last_steering_angle = steering_angle
+
         heading_image = display_heading_line(frame, steering_angle)
         display_lines(frame, lane_lines)
-        # cv2.imshow("heading line", heading_image)
+        cv2.imshow("heading line", heading_image)
 
         now = time.time()
         dt = now - lastTime
-        
+        print(f'Delta time: {dt}')
         deviation = steering_angle - 90
-        print(f'Steering Angle: {steering_angle} | Deviation: {deviation}')
+
+        # Calculate the discrete integral
+        if len(queue) >= 20:
+            queue.pop()
+        queue.insert(0, deviation)
+        deviation_int = np.mean(queue) # rolling average
+
+        deviation_dt = (deviation - last_deviation) / dt
+
+
+        
+        print(f'Steering Angle: {steering_angle} | Deviation: {deviation_int} | Steering Angle {steering_angle}')
         error = abs(deviation)
 
-        if deviation < 5 and deviation > -5:
-            # deviation = 0
+        if deviation_int < DEAD_ZONE and deviation_int > -DEAD_ZONE:
+            deviation = 0
             error = 0
             motor_control.steer_neutral()
         
-        elif deviation > 5:
-            motor_control.steer_right(deviation / 45)
+        elif deviation_int > 5:
+            motor_control.steer_right(0.8)
 
-        elif deviation < -5:
-            motor_control.steer_left(deviation / -45)
+        elif deviation_int < -5:
+            motor_control.steer_left(0.8)
         
+        last_deviation = deviation
+
         derivative = kd * (error - lastError) / dt 
         proportional = kp * error
         
-        motor_control.go_forward()
+        motor_control.go_forward(0.08)
 
         lastError = error
         lastTime = time.time()
         
         key = cv2.waitKey(1)
         if key == 27:
-            break
+            motor_control.stop()
+            motor_control.steer_neutral()
+            breaks
     
         
 
@@ -377,3 +418,4 @@ def run():
 if __name__ == "__main__":
     # test_image_checkpoints()
     run()
+[34, 34, 23, 23, 23]
